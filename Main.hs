@@ -28,7 +28,7 @@ renderCol (Table p n c) cl = vert_cat (map line (reverse p) ++ [selLine c] ++ ma
 selectedAttr = with_fore_color (with_back_color def_attr white) black
 
 renderApp :: App -> Image
-renderApp st =  text def_attr (currentTitle (stack st))
+renderApp st =  text selectedAttr (currentTitle (stack st))
             <-> empty_line
             <-> maybe empty_image renderTable' (currentTable . stack $ st)
   where empty_line = string def_attr " "

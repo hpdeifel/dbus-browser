@@ -41,8 +41,9 @@ data ViewStack = ViewStack View [View] -- cannot be empty
 initStack :: IO ViewStack
 initStack = do
   (system, session) <- getBusses
-  let view = View "Busses" (tabulize $ map (\(name,bus) -> BusE (BusEntry name bus)) l) 0
-      l = catMaybes $ zipWith (fmap . (,)) ["System", "Session"] [system, session]
+  let view = View "Available Busses" 
+             (tabulize $ map (\(name,bus) -> BusE (BusEntry name bus)) l) 0
+      l = catMaybes $ zipWith (fmap . (,)) ["System Bus", "Session Bus"] [system, session]
   return $ ViewStack view []
 
 currentView :: ViewStack -> View
@@ -168,21 +169,25 @@ expand :: TableEntry -> IO (Maybe (Title, [TableEntry]))
 
 expand (BusE e@(BusEntry name client)) = do
   names <- getNames client
-  return . Just $ (name, map (ServiceE . ServiceEntry e) names)
+  return . Just $ (title, map (ServiceE . ServiceEntry e) names)
+  where title = "Services on the " `append` name
 
 expand (ServiceE e@(ServiceEntry bus service)) = do
   objects <- getObjects client service
-  return . Just $ ("Objects", map (ObjectE . ObjectEntry e) objects)
+  return . Just $ (title, map (ObjectE . ObjectEntry e) objects)
   where (BusEntry _ client) = bus
+        title = "Objects of " `append` (busNameText service)
 
 expand (ObjectE e@(ObjectEntry srv path)) = do
   ifaces <- getInterfaces client service path
-  return . Just $ ("Interfaces", map (InterfaceE . InterfaceEntry e) ifaces)
+  return . Just $ (title, map (InterfaceE . InterfaceEntry e) ifaces)
   where (ServiceEntry (BusEntry _ client) service) = srv
+        title = "Interfaces implemented by " `append` (objectPathText path)
 
 expand (InterfaceE e@(InterfaceEntry obj name)) = do
   members <- getMembers client service path name
-  return . Just $ ("Members", map MemberE $ maybe [] (mkMemberEntry e) members)
+  return . Just $ (title, map MemberE $ maybe [] (mkMemberEntry e) members)
   where (ObjectEntry (ServiceEntry (BusEntry _ client) service) path) = obj
+        title = "Members of " `append` (interfaceNameText name)
 
 expand _ = return Nothing
