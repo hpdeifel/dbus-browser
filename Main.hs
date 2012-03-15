@@ -67,6 +67,11 @@ showNextView = do
 showPrevView :: Browser ()
 showPrevView = modify $ doToStack popView
 
+resize :: Int -> Int -> Browser ()
+resize w h = do
+  st <- get
+  put $ st { size = (w, h) }
+
 mainloop :: Browser ()
 mainloop = do
   st <- get
@@ -79,6 +84,7 @@ mainloop = do
     EvKey (KASCII 'k') [] -> selPrev >> mainloop
     EvKey (KASCII 'l') [] -> showNextView >> mainloop
     EvKey (KASCII 'h') [] -> showPrevView >> mainloop
+    EvResize w h          -> resize w h >> mainloop
     _ -> mainloop
 
 
