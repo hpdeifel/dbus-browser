@@ -16,14 +16,15 @@ data App = App {
   stack :: ViewStack
 }
 
-renderTable :: Table -> Image
-renderTable t@(Table p n c) = horiz_cat $ map (renderCol t) [0..maxcol]
+renderTable :: Int -> Table -> Image
+renderTable off t@(Table p n c) = horiz_cat $ map (renderCol off t) [0..maxcol]
   where maxcol = cols c
 
-renderCol :: Table -> Int -> Image
-renderCol (Table p n c) cl = vert_cat (map line (reverse p) ++ [selLine c] ++ map line n)
+renderCol :: Int -> Table -> Int -> Image
+renderCol off (Table p n c) cl = vert_cat (map line prev ++ [selLine c] ++ map line n)
   where line l = text def_attr (col cl l) <|> text def_attr " "
         selLine l = text selectedAttr (col cl l) <|> text selectedAttr " "
+        prev = drop off (reverse p)
 
 selectedAttr = with_fore_color (with_back_color def_attr white) black
 
@@ -32,8 +33,7 @@ renderApp st =  text selectedAttr (currentTitle (stack st))
             <-> empty_line
             <-> maybe empty_image renderTable' (currentTable . stack $ st)
   where empty_line = string def_attr " "
-        renderTable' = translate (0, negate $ viewScroll $ currentView $ stack st) . renderTable
---        renderTable' = renderTable
+        renderTable' =  renderTable (viewScroll $ currentView $ stack st)
 
 type Browser = StateT App IO
 
@@ -44,7 +44,7 @@ render = do
   (w, h) <- gets size
   modify (doToStack $ modifyView $ scrollView (h-2))
   app <- get
-  return $ renderApp app <-> string def_attr " "
+  return $ crop (fromIntegral w,fromIntegral h) $ renderApp app <-> string def_attr " "
 
 doToStack :: (ViewStack -> ViewStack) -> App -> App
 doToStack f app = app { stack = f (stack app) }
