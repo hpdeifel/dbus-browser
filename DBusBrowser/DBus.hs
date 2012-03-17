@@ -20,20 +20,75 @@ import DBus.Client hiding (Method)
 import DBus.Client.Simple (connectSystem, connectSession)
 import DBus.Message hiding (Signal)
 import DBus.Types
-import DBus.Connection
+import DBus.Connection hiding (connect)
 import DBus.Introspection
+import DBus.Address
 
 import qualified Data.Set as S
 import Data.Maybe
 import qualified Data.Text as T
 import Data.List (sort,find)
-
+import System.IO
+import System.Environment
+import qualified Data.Text.IO as TIO
 import Control.Exception
+import Control.Applicative
+import Control.Monad.Maybe
+import Control.Monad
+import "mtl" Control.Monad.Trans
+
+type MaybeIO = MaybeT IO
+
+maybeExt :: IO a -> MaybeIO a
+maybeExt f = MaybeT $ Just `fmap` f `catch` \(_ :: SomeException) -> return Nothing
+
+wrap :: Maybe a -> MaybeIO a
+wrap = MaybeT . return
+
+getMachineId :: MaybeIO T.Text
+getMachineId = do
+  (content :: T.Text) <- maybeExt $ TIO.readFile "/etc/machine-id"
+  wrap $ safeHead (T.lines content)
+  where safeHead (x:_) = Just x
+        safeHead _ = Nothing
+
+getDisplay :: MaybeIO T.Text
+getDisplay = do
+  disp <- T.pack <$> (maybeExt $ getEnv "DISPLAY")
+  MaybeT $ return $ stripPrefices disp
+
+  where stripPrefices d =  T.stripPrefix ":" d
+                       <|> T.stripPrefix "localhost:" d
+                       <|> T.stripPrefix "localhost.localdomain:" d
+
+getSessionID :: MaybeIO T.Text
+getSessionID = do
+  machid <- getMachineId
+  disp   <- getDisplay
+  return $ machid `T.append` "-" `T.append` disp
+
+getSessionAddress :: MaybeIO T.Text
+getSessionAddress = do
+  id <- getSessionID
+  home <- maybeExt $ getEnv "HOME"
+  let filename = home ++ "/.dbus/session-bus/" ++ (T.unpack id)
+      prefix = "DBUS_SESSION_BUS_ADDRESS="
+  file <- maybeExt $ TIO.readFile filename
+  let line = find (T.isPrefixOf prefix) (T.lines file)
+  MaybeT $ return $ T.stripPrefix prefix =<< line
+
+connectSessionFancy :: MaybeIO Client
+connectSessionFancy = do
+  addr <- getSessionAddress >>= (wrap . address)
+  maybeExt $ connect addr
+
+getSessionBus :: MaybeIO Client
+getSessionBus = (maybeExt connectSession) `mplus` connectSessionFancy
 
 getBusses :: IO (Maybe Client, Maybe Client)
 getBusses = do
   system <- fmap Just connectSystem `catch` \(e :: ConnectionError) -> return Nothing
-  session <- fmap Just connectSession `catch` \(e :: ConnectionError) -> return Nothing
+  session <- runMaybeT getSessionBus
   return (system, session)
 
 getNames :: Client -> IO [BusName]
