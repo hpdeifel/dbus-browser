@@ -4,10 +4,7 @@ module Main where
 
 import Graphics.Vty
 import "mtl" Control.Monad.State.Lazy
-import Data.Maybe
-import qualified Data.Text as T
 import Data.Text (Text, unpack)
-import DBusBrowser.DBus
 import DBusBrowser.View
 
 data App = App {
@@ -17,7 +14,7 @@ data App = App {
 }
 
 renderTable :: Int -> Table -> Image
-renderTable off t@(Table p n c) = horiz_cat $ map (renderCol off t) [0..maxcol]
+renderTable off t@(Table _ _ c) = horiz_cat $ map (renderCol off t) [0..maxcol]
   where maxcol = cols c
 
 renderCol :: Int -> Table -> Int -> Image
@@ -26,6 +23,7 @@ renderCol off (Table p n c) cl = vert_cat (map line prev ++ [selLine c] ++ map l
         selLine l = text selectedAttr (col cl l) <|> text selectedAttr " "
         prev = drop off (reverse p)
 
+selectedAttr :: Attr
 selectedAttr = with_fore_color (with_back_color def_attr white) black
 
 renderApp :: App -> Image
@@ -37,6 +35,7 @@ renderApp st =  text selectedAttr (currentTitle (stack st))
 
 type Browser = StateT App IO
 
+runBrowser :: StateT s m a -> s -> m (a, s)
 runBrowser = runStateT
 
 render :: Browser Image
@@ -88,8 +87,10 @@ mainloop = do
     _ -> mainloop
 
 
+text :: Attr -> Text -> Image
 text attr = string attr . unpack
 
+main :: IO ()
 main = do
   stack <- initStack
   vt <- mkVty

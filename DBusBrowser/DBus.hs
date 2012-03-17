@@ -28,14 +28,12 @@ import qualified Data.Set as S
 import Data.Maybe
 import qualified Data.Text as T
 import Data.List (sort,find)
-import System.IO
 import System.Environment
 import qualified Data.Text.IO as TIO
 import Control.Exception
 import Control.Applicative
 import Control.Monad.Maybe
 import Control.Monad
-import "mtl" Control.Monad.Trans
 
 type MaybeIO = MaybeT IO
 
@@ -69,9 +67,9 @@ getSessionID = do
 
 getSessionAddress :: MaybeIO T.Text
 getSessionAddress = do
-  id <- getSessionID
+  sessId <- getSessionID
   home <- maybeExt $ getEnv "HOME"
-  let filename = home ++ "/.dbus/session-bus/" ++ (T.unpack id)
+  let filename = home ++ "/.dbus/session-bus/" ++ (T.unpack sessId)
       prefix = "DBUS_SESSION_BUS_ADDRESS="
   file <- maybeExt $ TIO.readFile filename
   let line = find (T.isPrefixOf prefix) (T.lines file)
@@ -87,7 +85,7 @@ getSessionBus = (maybeExt connectSession) `mplus` connectSessionFancy
 
 getBusses :: IO (Maybe Client, Maybe Client)
 getBusses = do
-  system <- fmap Just connectSystem `catch` \(e :: ConnectionError) -> return Nothing
+  system <- fmap Just connectSystem `catch` \(_ :: ConnectionError) -> return Nothing
   session <- runMaybeT getSessionBus
   return (system, session)
 
@@ -129,10 +127,11 @@ collectObjects client service path = do
   case res of
     Nothing -> return []
     Just (Object _ [] objs) -> subObjects objs
-    Just (Object _ iface objs) -> fmap (path:) $ subObjects objs
+    Just (Object _ _ objs) -> fmap (path:) $ subObjects objs
 
   where subObjects objs = fmap concat $ mapM (collectObjects client service . getPath) objs  
 
+getPath :: Object -> ObjectPath
 getPath (Object p _ _) = p
 
 getInterfaces :: Client -> BusName -> ObjectPath -> IO [InterfaceName]
@@ -142,6 +141,7 @@ getInterfaces client service path = do
     Nothing -> return []
     Just (Object _ ifaces _) -> return $ map getIfaceName ifaces
 
+getIfaceName :: Interface -> InterfaceName
 getIfaceName (Interface n _ _ _) = n
 
 data Iface = Iface [Method] [Signal] [Prop]

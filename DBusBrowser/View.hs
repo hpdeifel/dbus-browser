@@ -26,8 +26,6 @@ import Data.Maybe
 import Data.List (intersperse)
 import DBusBrowser.DBus
 
-import Debug.Trace
-
 data View = View {
   viewTitle :: Title, 
   viewTable :: (Maybe Table),
@@ -49,7 +47,11 @@ initStack = do
 currentView :: ViewStack -> View
 currentView (ViewStack v _) = v
 
+currentTitle :: ViewStack -> Title
 currentTitle = viewTitle . currentView
+
+
+currentTable :: ViewStack -> Maybe Table
 currentTable = viewTable . currentView
 
 modifyTable :: (Table -> Table) -> ViewStack -> ViewStack
@@ -123,12 +125,14 @@ data TableEntry = BusE BusEntry
                 | InterfaceE InterfaceEntry
                 | MemberE MemberEntry
 
+cols :: TableEntry -> Int
 cols (BusE _) = 1
 cols (ServiceE _) = 1
 cols (ObjectE _) = 1
 cols (InterfaceE _) = 1
 cols (MemberE _) = 3
 
+col :: Int -> TableEntry -> Text
 col col entry
   | col < cols entry && col >= 0 = case entry of
     BusE (BusEntry name _) -> name
@@ -154,6 +158,9 @@ memberEntryCol 2 (PropertyEntry _ (Prop _ _ _ v)) = case v of
   Nothing -> ""
   Just x  -> pack $ show x
 
+memberEntryCol _ _ = ""
+
+sh :: [Parameter] -> Text
 sh = Text.concat . intersperse ", " . map paramToText
 
 paramToText :: Parameter -> Text
