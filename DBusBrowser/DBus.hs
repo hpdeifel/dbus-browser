@@ -1,16 +1,16 @@
-{-# LANGUAGE ScopedTypeVariables, OverloadedStrings #-}
+{-# LANGUAGE ScopedTypeVariables, OverloadedStrings, PackageImports #-}
 module DBusBrowser.DBus 
        ( module DBus.Types
        , Client
        , DBus.Introspection.Method(..)
        , DBus.Introspection.Signal(..)
-       , DBus.Introspection.Property(..)
        , DBus.Introspection.Parameter(..)
        , getBusses
        , getNames
        , getObjects
        , getInterfaces
        , Iface(..)
+       , Prop(..)
        , getMembers
        ) where
 
@@ -89,9 +89,14 @@ getInterfaces client service path = do
 
 getIfaceName (Interface n _ _ _) = n
 
-data Iface = Iface [Method] [Signal] [Property]
+data Iface = Iface [Method] [Signal] [Prop]
 
-mkIface (Interface _ ms ss ps) = Iface ms ss ps
+data Prop = Prop T.Text Signature [PropertyAccess] (Maybe Variant)
+
+mkIface :: Client -> BusName -> ObjectPath -> InterfaceName -> Interface -> IO Iface
+mkIface client service path iface (Interface _ ms ss ps) = fmap (Iface ms ss) ps'
+  where ps' = mapM getProp ps
+        getProp (Property t s ac) = fmap (Prop t s ac) (getProperty client service path iface t)
 
 getMembers :: Client -> BusName -> ObjectPath -> InterfaceName -> IO (Maybe Iface)
 getMembers client service path iface = do
@@ -99,4 +104,20 @@ getMembers client service path iface = do
   case res of 
     Nothing -> return Nothing
     Just (Object _ ifs _) -> do
-      return . fmap mkIface $ find (\(Interface n _ _ _) -> n == iface) ifs
+      let found = find (\(Interface n _ _ _) -> n == iface) ifs
+      maybe (return Nothing) (fmap Just . mkIface client service path iface) found
+
+
+getProperty :: Client -> BusName -> ObjectPath -> InterfaceName -> T.Text -> IO (Maybe Variant)
+getProperty client service path iface prop = do
+  res <- call_ client $ MethodCall {
+    methodCallPath = path,
+    methodCallMember = "Get",
+    methodCallInterface = Just "org.freedesktop.DBus.Properties",
+    methodCallDestination = Just service,
+    methodCallFlags = S.empty,
+    methodCallBody = [toVariant iface, toVariant prop] }
+
+  let (list :: Maybe Variant) = fromVariant (methodReturnBody res !! 0)
+
+  return $ list

@@ -116,7 +116,7 @@ data ObjectEntry = ObjectEntry ServiceEntry ObjectPath
 data InterfaceEntry = InterfaceEntry ObjectEntry InterfaceName
 data MemberEntry = MethodEntry InterfaceEntry Method
                  | SignalEntry InterfaceEntry Signal
-                 | PropertyEntry InterfaceEntry Property
+                 | PropertyEntry InterfaceEntry Prop
 data TableEntry = BusE BusEntry
                 | ServiceE ServiceEntry
                 | ObjectE ObjectEntry
@@ -146,12 +146,13 @@ memberEntryCol 0 (PropertyEntry _ _) = "Property"
 
 memberEntryCol 1 (MethodEntry _ (Method na _ _)) = memberNameText na
 memberEntryCol 1 (SignalEntry _ (Signal na _)) = memberNameText na
-memberEntryCol 1 (PropertyEntry _ (Property na _ _)) = na
+memberEntryCol 1 (PropertyEntry _ (Prop na _ _ _)) = na
 
 memberEntryCol 2 (MethodEntry _ (Method _ pi po)) = sh pi `append` " -> " `append` sh po
 memberEntryCol 2 (SignalEntry _ (Signal _ ps)) = sh ps
-memberEntryCol 2 (PropertyEntry _ (Property _ sig acc))
-  = (pack . show) acc `append` ": " `append` signatureText sig
+memberEntryCol 2 (PropertyEntry _ (Prop _ _ _ v)) = case v of
+  Nothing -> ""
+  Just x  -> pack $ show x
 
 sh = Text.concat . intersperse ", " . map paramToText
 
