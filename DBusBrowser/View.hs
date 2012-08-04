@@ -119,11 +119,14 @@ data InterfaceEntry = InterfaceEntry ObjectEntry InterfaceName
 data MemberEntry = MethodEntry InterfaceEntry Method
                  | SignalEntry InterfaceEntry Signal
                  | PropertyEntry InterfaceEntry Prop
+data ArgumentEntry = MethodArgEntry MemberEntry MethodArg
+                   | SignalArgEntry MemberEntry SignalArg
 data TableEntry = BusE BusEntry
                 | ServiceE ServiceEntry
                 | ObjectE ObjectEntry
                 | InterfaceE InterfaceEntry
                 | MemberE MemberEntry
+                | ArgE ArgumentEntry
 
 cols :: TableEntry -> Int
 cols (BusE _) = 1
@@ -131,6 +134,7 @@ cols (ServiceE _) = 1
 cols (ObjectE _) = 1
 cols (InterfaceE _) = 1
 cols (MemberE _) = 3
+cols (ArgE _) = 3
 
 col :: Int -> TableEntry -> Text
 col col entry
@@ -140,6 +144,7 @@ col col entry
     ObjectE (ObjectEntry _ path) -> pack $ formatObjectPath path
     InterfaceE (InterfaceEntry _ name) -> pack $ formatInterfaceName name
     MemberE me -> memberEntryCol col me
+    ArgE ae -> argumentEntryCol col ae
   | otherwise = ""
 
 memberEntryCol :: Int -> MemberEntry -> Text
@@ -177,6 +182,18 @@ mkMemberEntry e (Iface ms ss ps) = methods ++ signals ++ properties
         signals = map (SignalEntry e) ss
         properties = map (PropertyEntry e) ps
 
+argumentEntryCol :: Int -> ArgumentEntry -> Text
+
+argumentEntryCol 0 (MethodArgEntry _ m) =
+  if methodArgDirection m == directionIn then "IN" else  "OUT"
+argumentEntryCol 1 (MethodArgEntry _ m) = pack $ methodArgName m
+argumentEntryCol 2 (MethodArgEntry _ m) = pack $ show $ methodArgType m
+
+argumentEntryCol 0 (SignalArgEntry _ s) = pack $ signalArgName s
+argumentEntryCol 1 (SignalArgEntry _ s) = pack $ show $ signalArgType s
+
+argumentEntryCol _ _ = ""
+
 expand :: TableEntry -> IO (Maybe (Title, [TableEntry]))
 
 expand (BusE e@(BusEntry name client)) = do
@@ -201,5 +218,17 @@ expand (InterfaceE e@(InterfaceEntry obj name)) = do
   return . Just $ (title, map MemberE $ maybe [] (mkMemberEntry e) members)
   where (ObjectEntry (ServiceEntry (BusEntry _ client) service) path) = obj
         title = "Members of " `append` (pack $ formatInterfaceName name)
+
+expand (MemberE e@(MethodEntry _ meth)) = do 
+  let args = methodArgs meth
+      title = "Arguments for Method " `append` (pack $ formatMemberName $ methodName meth)
+  return . Just $ (title, map (ArgE . MethodArgEntry e) args)
+
+expand (MemberE e@(SignalEntry _ sig)) = do 
+  let args = signalArgs sig
+      title = "Arguments for Signal " `append` (pack $ formatMemberName $ signalName sig)
+  return . Just $ (title, map (ArgE . SignalArgEntry e) args)
+
+expand (MemberE e@(PropertyEntry _ _)) = return Nothing
 
 expand _ = return Nothing
