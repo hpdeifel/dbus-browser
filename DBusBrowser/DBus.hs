@@ -72,7 +72,7 @@ getSessionAddress = do
 
 connectSessionFancy :: MaybeIO Client
 connectSessionFancy = do
-  addr <- getSessionAddress >>= (wrap . flip address M.empty . T.unpack)
+  addr <- getSessionAddress >>= (wrap . parseAddress . T.unpack)
   maybeExt $ connect addr
 
 getSessionBus :: MaybeIO Client
