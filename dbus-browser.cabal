@@ -48,8 +48,7 @@ Executable dbus-browser
   Main-is:             Main.hs
   
   -- Packages needed in order to build this package.
-  Build-depends:       dbus-core >= 0.9, vty, mtl, base, text, containers,
-                       MaybeT
+  Build-depends:       dbus, vty, mtl, base, text, containers, MaybeT
   
   -- Modules not exported by this package.
   Other-modules:       DBusBrowser.View, DBusBrowser.DBus

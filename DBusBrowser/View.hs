@@ -136,9 +136,9 @@ col :: Int -> TableEntry -> Text
 col col entry
   | col < cols entry && col >= 0 = case entry of
     BusE (BusEntry name _) -> name
-    ServiceE (ServiceEntry _ name) -> busNameText name
-    ObjectE (ObjectEntry _ path) -> objectPathText path
-    InterfaceE (InterfaceEntry _ name) -> interfaceNameText name
+    ServiceE (ServiceEntry _ name) -> pack $ formatBusName name
+    ObjectE (ObjectEntry _ path) -> pack $ formatObjectPath path
+    InterfaceE (InterfaceEntry _ name) -> pack $ formatInterfaceName name
     MemberE me -> memberEntryCol col me
   | otherwise = ""
 
@@ -148,24 +148,28 @@ memberEntryCol 0 (MethodEntry _ _) = "Method"
 memberEntryCol 0 (SignalEntry _ _) = "Signal"
 memberEntryCol 0 (PropertyEntry _ _) = "Property"
 
-memberEntryCol 1 (MethodEntry _ (Method na _ _)) = memberNameText na
-memberEntryCol 1 (SignalEntry _ (Signal na _)) = memberNameText na
-memberEntryCol 1 (PropertyEntry _ (Prop na _ _ _)) = na
+memberEntryCol 1 (MethodEntry _ m) = pack $ formatMemberName (methodName m)
+memberEntryCol 1 (SignalEntry _ s) = pack $ formatMemberName (signalName s)
+memberEntryCol 1 (PropertyEntry _ (Prop na _ _ _ _)) = na
 
-memberEntryCol 2 (MethodEntry _ (Method _ pi po)) = sh pi `append` " -> " `append` sh po
-memberEntryCol 2 (SignalEntry _ (Signal _ ps)) = sh ps
-memberEntryCol 2 (PropertyEntry _ (Prop _ _ _ v)) = case v of
+memberEntryCol 2 (MethodEntry _ m) =
+  sh inArgs `append` " -> " `append` sh outArgs
+  where inArgs  = filt directionIn
+        outArgs = filt directionOut
+        filt dir = filter (((==) dir) . methodArgDirection) (methodArgs m)
+
+memberEntryCol 2 (SignalEntry _ s) = sh' (signalArgs s)
+memberEntryCol 2 (PropertyEntry _ (Prop _ _ _ _ v)) = case v of
   Nothing -> ""
   Just x  -> pack $ show x
 
 memberEntryCol _ _ = ""
 
-sh :: [Parameter] -> Text
-sh = Text.concat . intersperse ", " . map paramToText
+sh :: [MethodArg ] -> Text
+sh = Text.concat . intersperse ", " . map (pack . methodArgName)
 
-paramToText :: Parameter -> Text
-paramToText (Parameter _ s) = signatureText s
-
+sh' :: [SignalArg ] -> Text
+sh' = Text.concat . intersperse ", " . map (pack . signalArgName)
 
 mkMemberEntry :: InterfaceEntry -> Iface -> [MemberEntry]
 mkMemberEntry e (Iface ms ss ps) = methods ++ signals ++ properties
@@ -184,18 +188,18 @@ expand (ServiceE e@(ServiceEntry bus service)) = do
   objects <- getObjects client service
   return . Just $ (title, map (ObjectE . ObjectEntry e) objects)
   where (BusEntry _ client) = bus
-        title = "Objects of " `append` (busNameText service)
+        title = "Objects of " `append` (pack $ formatBusName service)
 
 expand (ObjectE e@(ObjectEntry srv path)) = do
   ifaces <- getInterfaces client service path
   return . Just $ (title, map (InterfaceE . InterfaceEntry e) ifaces)
   where (ServiceEntry (BusEntry _ client) service) = srv
-        title = "Interfaces implemented by " `append` (objectPathText path)
+        title = "Interfaces implemented by " `append` (pack $ formatObjectPath path)
 
 expand (InterfaceE e@(InterfaceEntry obj name)) = do
   members <- getMembers client service path name
   return . Just $ (title, map MemberE $ maybe [] (mkMemberEntry e) members)
   where (ObjectEntry (ServiceEntry (BusEntry _ client) service) path) = obj
-        title = "Members of " `append` (interfaceNameText name)
+        title = "Members of " `append` (pack $ formatInterfaceName name)
 
 expand _ = return Nothing

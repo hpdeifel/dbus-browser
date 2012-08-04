@@ -1,10 +1,8 @@
 {-# LANGUAGE ScopedTypeVariables, OverloadedStrings, PackageImports #-}
 module DBusBrowser.DBus 
-       ( module DBus.Types
+       ( module DBus
+       , module DBus.Introspection
        , Client
-       , DBus.Introspection.Method(..)
-       , DBus.Introspection.Signal(..)
-       , DBus.Introspection.Parameter(..)
        , getBusses
        , getNames
        , getObjects
@@ -17,16 +15,13 @@ module DBusBrowser.DBus
 import Prelude hiding (catch)
 
 import DBus.Client hiding (Method)
-import DBus.Client.Simple (connectSystem, connectSession)
-import DBus.Message hiding (Signal)
-import DBus.Types
-import DBus.Connection hiding (connect)
-import DBus.Introspection
-import DBus.Address
+import DBus hiding (getSessionAddress,Signal)
+import DBus.Introspection hiding (signal)
 
 import qualified Data.Set as S
 import Data.Maybe
 import qualified Data.Text as T
+import qualified Data.Map as M
 import Data.List (sort,find)
 import System.Environment
 import qualified Data.Text.IO as TIO
@@ -77,7 +72,7 @@ getSessionAddress = do
 
 connectSessionFancy :: MaybeIO Client
 connectSessionFancy = do
-  addr <- getSessionAddress >>= (wrap . address)
+  addr <- getSessionAddress >>= (wrap . flip address M.empty . T.unpack)
   maybeExt $ connect addr
 
 getSessionBus :: MaybeIO Client
@@ -85,19 +80,16 @@ getSessionBus = (maybeExt connectSession) `mplus` connectSessionFancy
 
 getBusses :: IO (Maybe Client, Maybe Client)
 getBusses = do
-  system <- fmap Just connectSystem `catch` \(_ :: ConnectionError) -> return Nothing
+  system <- fmap Just connectSystem `catch` \(_ :: ClientError) -> return Nothing
   session <- runMaybeT getSessionBus
   return (system, session)
 
 getNames :: Client -> IO [BusName]
 getNames client = do
-  res <- call_ client $ MethodCall {
-    methodCallPath = "/org/freedesktop/DBus",
-    methodCallMember = "ListNames",
-    methodCallInterface = Just "org.freedesktop.DBus",
-    methodCallDestination = Just "org.freedesktop.DBus",
-    methodCallFlags = S.empty,
-    methodCallBody = [] }
+  res <- call_ client $
+         (methodCall "/org/freedesktop/DBus" "org.freedesktop.DBus"
+         (memberName_ "ListNames") )
+         { methodCallDestination = Just "org.freedesktop.DBus" }
 
   let names = fromMaybe [] $ fromVariant (methodReturnBody res !! 0)
 
@@ -108,16 +100,14 @@ getObjects client service = collectObjects client service "/"
  
 introspect :: Client -> BusName -> ObjectPath -> IO (Maybe Object)
 introspect client service path = do
-  res <- call_ client $ MethodCall {
-    methodCallPath = path,
-    methodCallMember = "Introspect",
-    methodCallInterface = Just "org.freedesktop.DBus.Introspectable",
-    methodCallDestination = Just service,
-    methodCallFlags = S.empty,
-    methodCallBody = [] }
+  res <- call_ client $
+         (methodCall path "org.freedesktop.DBus.Introspectable" "Introspect") {
+           methodCallDestination = Just service }
 
   let xml = fromVariant $ methodReturnBody res !! 0
-      object = fromXML path =<< xml
+      object = parseXML path =<< xml
+
+  writeFile "out.log" (maybe "Error" id xml)
 
   return object
 
@@ -126,51 +116,50 @@ collectObjects client service path = do
   res <- introspect client service path
   case res of
     Nothing -> return []
-    Just (Object _ [] objs) -> subObjects objs
-    Just (Object _ _ objs) -> fmap (path:) $ subObjects objs
+    Just o  -> if null (objectInterfaces o)
+               then subObjects (objectChildren o)
+               else fmap (path:) $ subObjects (objectChildren o)
 
-  where subObjects objs = fmap concat $ mapM (collectObjects client service . getPath) objs  
-
-getPath :: Object -> ObjectPath
-getPath (Object p _ _) = p
+  where subObjects objs = fmap concat $ mapM (collectObjects client service . objectPath) objs  
 
 getInterfaces :: Client -> BusName -> ObjectPath -> IO [InterfaceName]
 getInterfaces client service path = do
   res <- introspect client service path
   case res of
     Nothing -> return []
-    Just (Object _ ifaces _) -> return $ map getIfaceName ifaces
-
-getIfaceName :: Interface -> InterfaceName
-getIfaceName (Interface n _ _ _) = n
+    Just o  -> return $ map interfaceName $ objectInterfaces o
 
 data Iface = Iface [Method] [Signal] [Prop]
 
-data Prop = Prop T.Text Signature [PropertyAccess] (Maybe Variant)
+type PropRead = Bool
+type PropWrite = Bool
+data Prop = Prop T.Text Type PropRead PropWrite (Maybe Variant)
 
 mkIface :: Client -> BusName -> ObjectPath -> InterfaceName -> Interface -> IO Iface
-mkIface client service path iface (Interface _ ms ss ps) = fmap (Iface ms ss) ps'
-  where ps' = mapM getProp ps
-        getProp (Property t s ac) = fmap (Prop t s ac) (getProperty client service path iface t)
+mkIface client service path iface i = fmap (Iface ms ss) ps'
+  where ps' = mapM getProp (interfaceProperties i)
+        getProp p = fmap (prop2prop p) (getProperty client service path iface 
+                                         (T.pack $ propertyName p))
+        prop2prop p = Prop (T.pack $ propertyName p) (propertyType p)
+                      (propertyRead p) (propertyWrite p)
+        ms = interfaceMethods i
+        ss = interfaceSignals i
+        
 
 getMembers :: Client -> BusName -> ObjectPath -> InterfaceName -> IO (Maybe Iface)
 getMembers client service path iface = do
   res <- introspect client service path
   case res of 
     Nothing -> return Nothing
-    Just (Object _ ifs _) -> do
-      let found = find (\(Interface n _ _ _) -> n == iface) ifs
+    Just o -> do
+      let found = find (\i -> interfaceName i == iface) (objectInterfaces o)
       maybe (return Nothing) (fmap Just . mkIface client service path iface) found
 
 
 getProperty :: Client -> BusName -> ObjectPath -> InterfaceName -> T.Text -> IO (Maybe Variant)
 getProperty client service path iface prop = do
-  res <- call_ client $ MethodCall {
-    methodCallPath = path,
-    methodCallMember = "Get",
-    methodCallInterface = Just "org.freedesktop.DBus.Properties",
+  res <- call_ client $ (methodCall path  "org.freedesktop.DBus.Properties" "Get") {
     methodCallDestination = Just service,
-    methodCallFlags = S.empty,
     methodCallBody = [toVariant iface, toVariant prop] }
 
   let (list :: Maybe Variant) = fromVariant (methodReturnBody res !! 0)
