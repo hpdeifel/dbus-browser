@@ -57,6 +57,18 @@ selNext = modify $ doToTable tableNext
 selPrev :: Browser ()
 selPrev = modify $ doToTable tablePrev
 
+pageUp :: Browser ()
+pageUp = do
+  (w, h) <- gets size
+  forM_ [0..(h-3)] $ \_ ->
+    selPrev
+
+pageDown :: Browser ()
+pageDown = do
+  (w, h) <- gets size
+  forM_ [0..(h-3)] $ \_ ->
+    selNext
+
 showNextView :: Browser ()
 showNextView = do
   st <- get
@@ -83,6 +95,8 @@ mainloop = do
     EvKey (KASCII 'k') [] -> selPrev >> mainloop
     EvKey (KASCII 'l') [] -> showNextView >> mainloop
     EvKey (KASCII 'h') [] -> showPrevView >> mainloop
+    EvKey KPageUp []      -> pageUp >> mainloop
+    EvKey KPageDown []    -> pageDown >> mainloop
     EvResize w h          -> resize w h >> mainloop
     _ -> mainloop
 
