@@ -48,11 +48,12 @@ getMachineId = do
 getDisplay :: MaybeIO T.Text
 getDisplay = do
   disp <- T.pack <$> (maybeExt $ getEnv "DISPLAY")
-  MaybeT $ return $ stripPrefices disp
+  MaybeT $ return $ stripPrefices $ stripScreen disp
 
   where stripPrefices d =  T.stripPrefix ":" d
                        <|> T.stripPrefix "localhost:" d
                        <|> T.stripPrefix "localhost.localdomain:" d
+        stripScreen     =  T.takeWhile (/= '.')
 
 getSessionID :: MaybeIO T.Text
 getSessionID = do
