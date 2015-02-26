@@ -1,5 +1,5 @@
 {-# LANGUAGE ScopedTypeVariables, OverloadedStrings, PackageImports #-}
-module DBusBrowser.DBus 
+module DBusBrowser.DBus
        ( module DBus
        , module DBus.Introspection
        , Client
@@ -20,11 +20,11 @@ import DBus.Introspection hiding (signal)
 
 import qualified Data.Set as S
 import Data.Maybe
-import qualified Data.Text as T
+import qualified Data.Text.Lazy as T
 import qualified Data.Map as M
 import Data.List (sort,find)
 import System.Environment
-import qualified Data.Text.IO as TIO
+import qualified Data.Text.Lazy.IO as TIO
 import Control.Exception
 import Control.Applicative
 import Control.Monad.Maybe
@@ -98,7 +98,7 @@ getNames client = do
 
 getObjects :: Client -> BusName -> IO [ObjectPath]
 getObjects client service = collectObjects client service "/"
- 
+
 introspect :: Client -> BusName -> ObjectPath -> IO (Maybe Object)
 introspect client service path = do
   res <- call_ client $
@@ -121,7 +121,7 @@ collectObjects client service path = do
                then subObjects (objectChildren o)
                else fmap (path:) $ subObjects (objectChildren o)
 
-  where subObjects objs = fmap concat $ mapM (collectObjects client service . objectPath) objs  
+  where subObjects objs = fmap concat $ mapM (collectObjects client service . objectPath) objs
 
 getInterfaces :: Client -> BusName -> ObjectPath -> IO [InterfaceName]
 getInterfaces client service path = do
@@ -139,18 +139,18 @@ data Prop = Prop T.Text Type PropRead PropWrite (Maybe Variant)
 mkIface :: Client -> BusName -> ObjectPath -> InterfaceName -> Interface -> IO Iface
 mkIface client service path iface i = fmap (Iface ms ss) ps'
   where ps' = mapM getProp (interfaceProperties i)
-        getProp p = fmap (prop2prop p) (getProperty client service path iface 
+        getProp p = fmap (prop2prop p) (getProperty client service path iface
                                          (T.pack $ propertyName p))
         prop2prop p = Prop (T.pack $ propertyName p) (propertyType p)
                       (propertyRead p) (propertyWrite p)
         ms = interfaceMethods i
         ss = interfaceSignals i
-        
+
 
 getMembers :: Client -> BusName -> ObjectPath -> InterfaceName -> IO (Maybe Iface)
 getMembers client service path iface = do
   res <- introspect client service path
-  case res of 
+  case res of
     Nothing -> return Nothing
     Just o -> do
       let found = find (\i -> interfaceName i == iface) (objectInterfaces o)

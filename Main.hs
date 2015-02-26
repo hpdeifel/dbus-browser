@@ -2,9 +2,10 @@
 
 module Main where
 
-import Graphics.Vty
+import Graphics.Vty hiding (resize)
+import Data.Default
 import "mtl" Control.Monad.State.Lazy
-import Data.Text (Text, unpack)
+import Data.Text.Lazy (Text, unpack)
 import DBusBrowser.View
 
 data App = App {
@@ -14,23 +15,23 @@ data App = App {
 }
 
 renderTable :: Int -> Table -> Image
-renderTable off t@(Table _ _ c) = horiz_cat $ map (renderCol off t) [0..maxcol]
+renderTable off t@(Table _ _ c) = horizCat $ map (renderCol off t) [0..maxcol]
   where maxcol = cols c
 
 renderCol :: Int -> Table -> Int -> Image
-renderCol off (Table p n c) cl = vert_cat (map line prev ++ [selLine c] ++ map line n)
-  where line l = text def_attr (col cl l) <|> text def_attr " "
+renderCol off (Table p n c) cl = vertCat (map line prev ++ [selLine c] ++ map line n)
+  where line l = text defAttr (col cl l) <|> text defAttr " "
         selLine l = text selectedAttr (col cl l) <|> text selectedAttr " "
         prev = drop off (reverse p)
 
 selectedAttr :: Attr
-selectedAttr = with_fore_color (with_back_color def_attr white) black
+selectedAttr = withForeColor (withBackColor defAttr white) black
 
 renderApp :: App -> Image
 renderApp st =  text selectedAttr (currentTitle (stack st))
             <-> empty_line
-            <-> maybe empty_image renderTable' (currentTable . stack $ st)
-  where empty_line = string def_attr " "
+            <-> maybe emptyImage renderTable' (currentTable . stack $ st)
+  where empty_line = string defAttr " "
         renderTable' =  renderTable (viewScroll $ currentView $ stack st)
 
 type Browser = StateT App IO
@@ -43,7 +44,7 @@ render = do
   (w, h) <- gets size
   modify (doToStack $ modifyView $ scrollView (h-2))
   app <- get
-  return $ crop (fromIntegral w,fromIntegral h) $ renderApp app <-> string def_attr " "
+  return $ crop (fromIntegral w) (fromIntegral h) $ renderApp app <-> string defAttr " "
 
 doToStack :: (ViewStack -> ViewStack) -> App -> App
 doToStack f app = app { stack = f (stack app) }
@@ -87,27 +88,27 @@ mainloop :: Browser ()
 mainloop = do
   st <- get
   pic <- render
-  liftIO $ update (vty st) (pic_for_image pic)
-  e <- liftIO $ next_event (vty st)
+  liftIO $ update (vty st) (picForImage pic)
+  e <- liftIO $ nextEvent (vty st)
   case e of
-    EvKey (KASCII 'q') [] -> return ()
-    EvKey (KASCII 'j') [] -> selNext >> mainloop
-    EvKey (KASCII 'k') [] -> selPrev >> mainloop
-    EvKey (KASCII 'l') [] -> showNextView >> mainloop
-    EvKey (KASCII 'h') [] -> showPrevView >> mainloop
+    EvKey (KChar 'q') [] -> return ()
+    EvKey (KChar 'j') [] -> selNext >> mainloop
+    EvKey (KChar 'k') [] -> selPrev >> mainloop
+    EvKey (KChar 'l') [] -> showNextView >> mainloop
+    EvKey (KChar 'h') [] -> showPrevView >> mainloop
     EvKey KPageUp []      -> pageUp >> mainloop
     EvKey KPageDown []    -> pageDown >> mainloop
     EvResize w h          -> resize w h >> mainloop
     _ -> mainloop
 
 
-text :: Attr -> Text -> Image
-text attr = string attr . unpack
+-- text :: Attr -> Text -> Image
+-- text attr = string attr . unpack
 
 main :: IO ()
 main = do
   stack <- initStack
-  vt <- mkVty
-  DisplayRegion w h <- display_bounds $ terminal vt
+  vt <- mkVty def
+  (w, h) <- displayBounds $ outputIface vt
   runBrowser mainloop $ App vt (fromIntegral w,fromIntegral h) stack
   shutdown vt >> return ()

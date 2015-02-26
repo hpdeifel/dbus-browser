@@ -1,6 +1,6 @@
 {-# LANGUAGE OverloadedStrings #-}
 
-module DBusBrowser.View 
+module DBusBrowser.View
        ( View(..)
        , ViewStack(..)
        , initStack
@@ -20,14 +20,14 @@ module DBusBrowser.View
        , cols
        ) where
 
-import Data.Text (Text, append, pack)
-import qualified Data.Text as Text
+import Data.Text.Lazy (Text, append, pack)
+import qualified Data.Text.Lazy as Text
 import Data.Maybe
 import Data.List (intersperse)
 import DBusBrowser.DBus
 
 data View = View {
-  viewTitle :: Title, 
+  viewTitle :: Title,
   viewTable :: (Maybe Table),
   viewScroll :: Int
 }
@@ -39,7 +39,7 @@ data ViewStack = ViewStack View [View] -- cannot be empty
 initStack :: IO ViewStack
 initStack = do
   (system, session) <- getBusses
-  let view = View "Available Busses" 
+  let view = View "Available Busses"
              (tabulize $ map (\(name,bus) -> BusE (BusEntry name bus)) l) 0
       l = catMaybes $ zipWith (fmap . (,)) ["System Bus", "Session Bus"] [system, session]
   return $ ViewStack view []
@@ -219,12 +219,12 @@ expand (InterfaceE e@(InterfaceEntry obj name)) = do
   where (ObjectEntry (ServiceEntry (BusEntry _ client) service) path) = obj
         title = "Members of " `append` (pack $ formatInterfaceName name)
 
-expand (MemberE e@(MethodEntry _ meth)) = do 
+expand (MemberE e@(MethodEntry _ meth)) = do
   let args = methodArgs meth
       title = "Arguments for Method " `append` (pack $ formatMemberName $ methodName meth)
   return . Just $ (title, map (ArgE . MethodArgEntry e) args)
 
-expand (MemberE e@(SignalEntry _ sig)) = do 
+expand (MemberE e@(SignalEntry _ sig)) = do
   let args = signalArgs sig
       title = "Arguments for Signal " `append` (pack $ formatMemberName $ signalName sig)
   return . Just $ (title, map (ArgE . SignalArgEntry e) args)
