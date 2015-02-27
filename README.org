@@ -1,0 +1,3 @@
+* dbus-browser
+
+  Explore dbus services on the terminal
