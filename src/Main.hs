@@ -158,13 +158,13 @@ populateMembers list bus name path iface = do
   getMembers bus name path iface >>= \case
     Nothing -> return ()
     Just (Iface meths sigs props) -> do
-      forM_ meths $ \meth -> do
-        txt <- plainText $ T.append "M " (T.pack $ formatMemberName $ methodName meth)
-        onList list $ \l -> addToList l (Method meth) txt
-
       forM_ props $ \prop -> do
         txt <- plainText $ T.append "P " (propName prop)
         onList list $ \l -> addToList l (Property prop) txt
+
+      forM_ meths $ \meth -> do
+        txt <- plainText $ T.append "M " (T.pack $ formatMemberName $ methodName meth)
+        onList list $ \l -> addToList l (Method meth) txt
 
       forM_ sigs $ \sig -> do
         txt <- plainText $ T.append "S " (T.pack $ formatMemberName $ signalName sig)
