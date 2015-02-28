@@ -1,4 +1,4 @@
-{-# LANGUAGE OverloadedStrings, LambdaCase, PatternGuards #-}
+{-# LANGUAGE OverloadedStrings, LambdaCase, PatternGuards, RecordWildCards #-}
 module Main where
 
 import Control.Monad
@@ -8,12 +8,14 @@ import Data.Text (Text)
 import qualified Data.Text as T
 import Data.List
 import Data.IORef
+import Data.Maybe
 
 import Graphics.Vty.Widgets.All hiding (state)
 import Graphics.Vty.Widgets.HeaderList
 import Graphics.Vty
 
 import DBusBrowser.DBus
+import DBusBrowser.Formatting
 
 main :: IO ()
 main = do
@@ -66,9 +68,7 @@ createServiceBrowser state ui = do
 
   onList memberList $ \l -> l `onSelectionChange` \case
     SelectionOff -> setText statusBar ""
-    SelectionOn _ (Property p) _
-      | Just val <- propValue p ->
-          setText statusBar $ T.pack $ show val
+    SelectionOn _ (Property p) _ -> setText statusBar $ showProp p
     SelectionOn _ _ _ -> setText statusBar ""
 
   fg <- newFocusGroup
@@ -179,6 +179,17 @@ populateMembers list bus name path iface = do
       forM_ sigs $ \sig -> do
         txt <- plainText $ T.append "S " (T.pack $ formatMemberName $ signalName sig)
         onList list $ \l -> addToList l (Signal sig) txt
+
+
+showProp :: Prop -> Text
+showProp Prop{..}
+  | Just variant <- propValue = T.concat
+                                  [ T.pack (show variant)
+                                  , " :: "
+                                  , formatType propType
+                                  ]
+showProp _ = ""
+
 
 -- Sort alphabetically, but put names starting with ':' last
 compareNames :: BusName -> BusName -> Ordering
