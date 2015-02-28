@@ -18,5 +18,6 @@ Executable dbus-browser
   Other-modules:       DBusBrowser.DBus,
                        DBusBrowser.Formatting,
                        Graphics.Vty.Widgets.HeaderList,
+                       Graphics.Vty.Widgets.Vim,
                        Unparse
   ghc-options:         -threaded

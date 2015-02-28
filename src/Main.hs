@@ -11,6 +11,7 @@ import Data.IORef
 
 import Graphics.Vty.Widgets.All hiding (state)
 import Graphics.Vty.Widgets.HeaderList
+import Graphics.Vty.Widgets.Vim
 import Graphics.Vty
 
 import DBusBrowser.DBus
@@ -50,9 +51,9 @@ createServiceBrowser state ui = do
   ifaceList <- newHeaderList "Interfaces" 1
   memberList <- newHeaderList "Members" 1
 
-  setFocusAttrs objectsList
-  setFocusAttrs ifaceList
-  setFocusAttrs memberList
+  setFocusAttrs objectsList >> addVimBindings objectsList
+  setFocusAttrs ifaceList >> addVimBindings ifaceList
+  setFocusAttrs memberList >> addVimBindings memberList
 
   statusBar <- plainText ""
 
@@ -80,6 +81,8 @@ createServiceBrowser state ui = do
   void $ addToFocusGroup fg ifaceList
   void $ addToFocusGroup fg memberList
 
+  addVimBindings fg
+
   fg `onKeyPressed` \_ key _ ->
     if key == KChar 'q'
     then setCurrentEntry ui 0 >> return True
@@ -101,12 +104,14 @@ createBusLists state ui = do
   sessionList <- newHeaderList "Session Bus" 1
   systemList <- newHeaderList "System Bus" 1
 
-  setFocusAttrs sessionList
-  setFocusAttrs systemList
+  setFocusAttrs sessionList >> addVimBindings sessionList
+  setFocusAttrs systemList >> addVimBindings systemList
 
   fg <- newFocusGroup
   void $ addToFocusGroup fg sessionList
   void $ addToFocusGroup fg systemList
+
+  addVimBindings fg
 
   fg `onKeyPressed` \_ key _ ->
     if key == KChar 'q' then
