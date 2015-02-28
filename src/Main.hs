@@ -50,6 +50,10 @@ createServiceBrowser state ui = do
   ifaceList <- newHeaderList "Interfaces" 1
   memberList <- newHeaderList "Members" 1
 
+  setFocusAttrs objectsList
+  setFocusAttrs ifaceList
+  setFocusAttrs memberList
+
   statusBar <- plainText ""
 
   onList objectsList $ \l -> l `onSelectionChange` \case
@@ -96,6 +100,9 @@ createBusLists :: IORef (Maybe Client) -> Collection
 createBusLists state ui = do
   sessionList <- newHeaderList "Session Bus" 1
   systemList <- newHeaderList "System Bus" 1
+
+  setFocusAttrs sessionList
+  setFocusAttrs systemList
 
   fg <- newFocusGroup
   void $ addToFocusGroup fg sessionList
@@ -230,3 +237,14 @@ stripPrefix' pref t = case T.stripPrefix pref t of
   Nothing -> t
   Just "" -> "."
   Just x  -> x
+
+selectedFocusAttr :: Attr
+selectedFocusAttr = withBackColor defAttr red
+
+selectedUnfocusAttr :: Attr
+selectedUnfocusAttr = withBackColor defAttr brightBlack
+
+setFocusAttrs :: Widget (HeaderList a b) -> IO ()
+setFocusAttrs list = do
+    onList list $ \l -> setSelectedFocusedAttr l (Just selectedFocusAttr)
+    onList list $ \l -> setSelectedUnfocusedAttr l (Just selectedUnfocusAttr)
