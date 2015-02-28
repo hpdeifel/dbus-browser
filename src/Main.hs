@@ -69,7 +69,7 @@ createServiceBrowser state ui = do
     SelectionOff -> setText statusBar ""
     SelectionOn _ (Property p) _ -> setText statusBar $ showProp p
     SelectionOn _ (Method m) _ -> setTextWithAttrs statusBar $ showMethod m
-    SelectionOn _ _ _ -> setText statusBar ""
+    SelectionOn _ (Signal s) _ -> setText statusBar $ showSignal s
 
   fg <- newFocusGroup
   void $ addToFocusGroup fg objectsList
@@ -199,6 +199,11 @@ showMethod m = [ ("Args: ", defAttr)] ++ intersperse (", ", defAttr) args
           | otherwise                           = withForeColor defAttr red
         args = map showArg (methodArgs m)
 
+showSignal :: Signal -> Text
+showSignal s = T.append "Args: " $ T.intercalate ", " args
+  where args = map showArg (signalArgs s)
+        showArg a = argText (signalArgName a) (signalArgType a)
+        argText name typ = T.concat [T.pack name, " :: ", formatType typ]
 
 -- Sort alphabetically, but put names starting with ':' last
 compareNames :: BusName -> BusName -> Ordering
