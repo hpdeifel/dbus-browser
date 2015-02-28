@@ -8,7 +8,6 @@ import Data.Text (Text)
 import qualified Data.Text as T
 import Data.List
 import Data.IORef
-import Data.Maybe
 
 import Graphics.Vty.Widgets.All hiding (state)
 import Graphics.Vty.Widgets.HeaderList
@@ -69,6 +68,7 @@ createServiceBrowser state ui = do
   onList memberList $ \l -> l `onSelectionChange` \case
     SelectionOff -> setText statusBar ""
     SelectionOn _ (Property p) _ -> setText statusBar $ showProp p
+    SelectionOn _ (Method m) _ -> setTextWithAttrs statusBar $ showMethod m
     SelectionOn _ _ _ -> setText statusBar ""
 
   fg <- newFocusGroup
@@ -189,6 +189,15 @@ showProp Prop{..}
                                   , formatType propType
                                   ]
 showProp _ = ""
+
+showMethod :: Method -> [(Text, Attr)]
+showMethod m = [ ("Args: ", defAttr)] ++ intersperse (", ", defAttr) args
+  where showArg a = (argText (methodArgName a) (methodArgType a), argAttr a)
+        argText name typ = T.concat [T.pack name, " :: ", formatType typ]
+        argAttr a
+          | methodArgDirection a == directionIn = withForeColor defAttr green
+          | otherwise                           = withForeColor defAttr red
+        args = map showArg (methodArgs m)
 
 
 -- Sort alphabetically, but put names starting with ':' last
