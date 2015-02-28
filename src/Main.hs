@@ -1,4 +1,4 @@
-{-# LANGUAGE OverloadedStrings, LambdaCase #-}
+{-# LANGUAGE OverloadedStrings, LambdaCase, PatternGuards #-}
 module Main where
 
 import Control.Monad
@@ -49,6 +49,8 @@ createServiceBrowser state ui = do
   ifaceList <- newHeaderList "Interfaces" 1
   memberList <- newHeaderList "Members" 1
 
+  statusBar <- plainText ""
+
   onList objectsList $ \l -> l `onSelectionChange` \case
     SelectionOff -> onList ifaceList clearList
     SelectionOn _ (name, path) _ -> do
@@ -61,6 +63,13 @@ createServiceBrowser state ui = do
       Just bus <- readIORef state
       Just (_, ((name,path), _)) <- onList objectsList getSelected
       populateMembers memberList bus name path iface
+
+  onList memberList $ \l -> l `onSelectionChange` \case
+    SelectionOff -> setText statusBar ""
+    SelectionOn _ (Property p) _
+      | Just val <- propValue p ->
+          setText statusBar $ T.pack $ show val
+    SelectionOn _ _ _ -> setText statusBar ""
 
   fg <- newFocusGroup
   void $ addToFocusGroup fg objectsList
@@ -76,7 +85,8 @@ createServiceBrowser state ui = do
   sndBox <- vBorder <++> return memberList
   layout <- hBox fstBox sndBox
   setBoxChildSizePolicy layout (Percentage 65)
-  void $ addToCollection ui layout fg
+  withBar <- return layout <--> hBorder <--> return statusBar
+  void $ addToCollection ui withBar fg
 
   return objectsList
 

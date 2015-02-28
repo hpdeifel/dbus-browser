@@ -9,7 +9,6 @@ module DBusBrowser.DBus
        , getInterfaces
        , Iface(..)
        , Prop(..)
-       , propName
        , getMembers
        ) where
 
@@ -135,10 +134,13 @@ data Iface = Iface [Method] [Signal] [Prop]
 
 type PropRead = Bool
 type PropWrite = Bool
-data Prop = Prop T.Text Type PropRead PropWrite (Maybe Variant)
-
-propName :: Prop -> T.Text
-propName (Prop t _ _ _ _) = t
+data Prop = Prop {
+  propName :: T.Text,
+  propType :: Type,
+  propRead :: PropRead,
+  propWrite :: PropWrite,
+  propValue :: Maybe Variant
+}
 
 mkIface :: Client -> BusName -> ObjectPath -> InterfaceName -> Interface -> IO Iface
 mkIface client service path iface i = fmap (Iface ms ss) ps'
