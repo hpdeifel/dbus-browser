@@ -184,26 +184,31 @@ populateMembers list bus name path iface = do
 showProp :: Prop -> Text
 showProp Prop{..}
   | Just variant <- propValue = T.concat
-                                  [ formatVariant variant
+                                  [ propName
+                                  , ": "
+                                  , formatVariant variant
                                   , " :: "
                                   , formatType propType
                                   ]
 showProp _ = ""
 
 showMethod :: Method -> [(Text, Attr)]
-showMethod m = [ ("Args: ", defAttr)] ++ intersperse (", ", defAttr) args
+showMethod m = [ (T.append mname ": ", defAttr)]
+               ++ intersperse (", ", defAttr) args
   where showArg a = (argText (methodArgName a) (methodArgType a), argAttr a)
         argText name typ = T.concat [T.pack name, " :: ", formatType typ]
         argAttr a
           | methodArgDirection a == directionIn = withForeColor defAttr green
           | otherwise                           = withForeColor defAttr red
         args = map showArg (methodArgs m)
+        mname = T.pack $ formatMemberName $ methodName m
 
 showSignal :: Signal -> Text
-showSignal s = T.append "Args: " $ T.intercalate ", " args
+showSignal s = T.concat [sname,  ": ", T.intercalate ", " args]
   where args = map showArg (signalArgs s)
         showArg a = argText (signalArgName a) (signalArgType a)
         argText name typ = T.concat [T.pack name, " :: ", formatType typ]
+        sname = T.pack $ formatMemberName $ signalName s
 
 -- Sort alphabetically, but put names starting with ':' last
 compareNames :: BusName -> BusName -> Ordering
