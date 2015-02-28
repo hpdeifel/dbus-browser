@@ -14,8 +14,6 @@ import Graphics.Vty
 
 import DBusBrowser.DBus
 
--- TODO Add IORef with currently selected bus
-
 main :: IO ()
 main = do
   state <- newIORef Nothing
@@ -29,6 +27,7 @@ main = do
       Just bus -> do
         populateObjects objectsList bus name
         setCurrentEntry ui 1
+        focus objectsList
         return ()
 
   onList systemList $ \l -> l `onItemActivated` \(ActivateItemEvent _ name _) -> do
@@ -37,12 +36,13 @@ main = do
       Just bus -> do
         populateObjects objectsList bus name
         setCurrentEntry ui 1
+        focus objectsList
         return ()
 
   runUi ui defaultContext
 
 createServiceBrowser :: IORef (Maybe Client) -> Collection
-                     -> IO (Widget (HeaderList ObjectPath FormattedText))
+                     -> IO (Widget (HeaderList (BusName, ObjectPath) FormattedText))
 createServiceBrowser state ui = do
   objectsList <- newHeaderList "Objects" 1
   ifaceList <- newHeaderList "Interfaces" 1
@@ -50,14 +50,16 @@ createServiceBrowser state ui = do
 
   onList objectsList $ \l -> l `onSelectionChange` \case
     SelectionOff -> onList ifaceList clearList
-    SelectionOn _ _ _ -> return () -- TODO
+    SelectionOn _ (name, path) _ -> do
+      Just bus <- readIORef state
+      populateIfaces ifaceList bus name path
 
-  let foo = "foo"
-      bar = "bar"
-  onList ifaceList $ \l -> addToList l foo =<< plainText foo
-  onList ifaceList $ \l -> addToList l foo =<< plainText bar
-  onList memberList $ \l -> addToList l foo =<< plainText foo
-  onList memberList $ \l -> addToList l foo =<< plainText bar
+  onList ifaceList $ \l -> l `onSelectionChange` \case
+    SelectionOff -> onList memberList clearList
+    SelectionOn _ iface _ -> do
+      Just bus <- readIORef state
+      Just (_, ((name,path), _)) <- onList objectsList getSelected
+      populateMembers memberList bus name path iface
 
   fg <- newFocusGroup
   void $ addToFocusGroup fg objectsList
@@ -120,13 +122,46 @@ populateList list (Just bus) = do
     txt <- plainText (T.pack $ formatBusName name)
     onList list $ \l -> addToList l name txt
 
-populateObjects :: Widget (HeaderList ObjectPath FormattedText) -> Client -> BusName -> IO ()
+populateObjects :: Widget (HeaderList (BusName, ObjectPath) FormattedText)
+                -> Client -> BusName -> IO ()
 populateObjects list bus name = do
   objects <- getObjects bus name
   onList list clearList
   forM_ objects $ \path -> do
     txt <- plainText (T.pack $ formatObjectPath path)
-    onList list $ \l -> addToList l path txt
+    onList list $ \l -> addToList l (name, path) txt
+
+populateIfaces :: Widget (HeaderList InterfaceName FormattedText)
+               -> Client -> BusName -> ObjectPath -> IO ()
+populateIfaces list bus name path = do
+  ifaces <- getInterfaces bus name path
+  onList list clearList
+  forM_ ifaces $ \iface -> do
+    txt <- plainText (T.pack $ formatInterfaceName iface)
+    onList list $ \l -> addToList l iface txt
+
+data SomeMember = Method Method
+                | Signal Signal
+                | Property Prop
+
+populateMembers :: Widget (HeaderList SomeMember FormattedText)
+                -> Client -> BusName -> ObjectPath -> InterfaceName -> IO ()
+populateMembers list bus name path iface = do
+  onList list clearList
+  getMembers bus name path iface >>= \case
+    Nothing -> return ()
+    Just (Iface meths sigs props) -> do
+      forM_ meths $ \meth -> do
+        txt <- plainText $ T.append "M " (T.pack $ formatMemberName $ methodName meth)
+        onList list $ \l -> addToList l (Method meth) txt
+
+      forM_ props $ \prop -> do
+        txt <- plainText $ T.append "P " (propName prop)
+        onList list $ \l -> addToList l (Property prop) txt
+
+      forM_ sigs $ \sig -> do
+        txt <- plainText $ T.append "S " (T.pack $ formatMemberName $ signalName sig)
+        onList list $ \l -> addToList l (Signal sig) txt
 
 -- Sort alphabetically, but put names starting with ':' last
 compareNames :: BusName -> BusName -> Ordering

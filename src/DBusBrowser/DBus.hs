@@ -9,6 +9,7 @@ module DBusBrowser.DBus
        , getInterfaces
        , Iface(..)
        , Prop(..)
+       , propName
        , getMembers
        ) where
 
@@ -20,11 +21,11 @@ import DBus.Introspection hiding (signal)
 
 import qualified Data.Set as S
 import Data.Maybe
-import qualified Data.Text.Lazy as T
+import qualified Data.Text as T
 import qualified Data.Map as M
 import Data.List (sort,find)
 import System.Environment
-import qualified Data.Text.Lazy.IO as TIO
+import qualified Data.Text.IO as TIO
 import Control.Exception
 import Control.Applicative
 import Control.Monad.Maybe
@@ -135,6 +136,9 @@ data Iface = Iface [Method] [Signal] [Prop]
 type PropRead = Bool
 type PropWrite = Bool
 data Prop = Prop T.Text Type PropRead PropWrite (Maybe Variant)
+
+propName :: Prop -> T.Text
+propName (Prop t _ _ _ _) = t
 
 mkIface :: Client -> BusName -> ObjectPath -> InterfaceName -> Interface -> IO Iface
 mkIface client service path iface i = fmap (Iface ms ss) ps'
