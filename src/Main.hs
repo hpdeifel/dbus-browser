@@ -4,6 +4,7 @@ module Main where
 import Control.Monad
 import Control.Applicative
 import System.Exit
+import Data.Text (Text)
 import qualified Data.Text as T
 import Data.List
 import Data.IORef
@@ -126,18 +127,24 @@ populateObjects :: Widget (HeaderList (BusName, ObjectPath) FormattedText)
                 -> Client -> BusName -> IO ()
 populateObjects list bus name = do
   objects <- getObjects bus name
+  let prefix = commonPrefix $ map (T.pack . formatObjectPath) objects
   onList list clearList
+  setHeader list $ "Objects " `T.append` prefix
   forM_ objects $ \path -> do
-    txt <- plainText (T.pack $ formatObjectPath path)
+    let path' = stripPrefix' prefix $ T.pack $ formatObjectPath path
+    txt <- plainText path'
     onList list $ \l -> addToList l (name, path) txt
 
 populateIfaces :: Widget (HeaderList InterfaceName FormattedText)
                -> Client -> BusName -> ObjectPath -> IO ()
 populateIfaces list bus name path = do
   ifaces <- getInterfaces bus name path
+  let prefix = commonPrefix $ map (T.pack . formatInterfaceName) ifaces
   onList list clearList
+  setHeader list $ "Interfaces " `T.append` prefix
   forM_ ifaces $ \iface -> do
-    txt <- plainText (T.pack $ formatInterfaceName iface)
+    let iface' = stripPrefix' prefix $ T.pack $ formatInterfaceName iface
+    txt <- plainText iface'
     onList list $ \l -> addToList l iface txt
 
 data SomeMember = Method Method
@@ -170,3 +177,16 @@ compareNames name1 name2 = case (formatBusName name1, formatBusName name2) of
   (':':_, _)     -> GT
   (_, ':':_)     -> LT
   _              -> compare name1 name2
+
+commonPrefix :: [Text] -> Text
+commonPrefix []  = ""
+commonPrefix lst = foldl1 commonPrefix1 lst
+  where commonPrefix1 t1 t2 = case T.commonPrefixes t1 t2 of
+          Nothing -> ""
+          Just (p, _, _) -> p
+
+stripPrefix' :: Text -> Text -> Text
+stripPrefix' pref t = case T.stripPrefix pref t of
+  Nothing -> t
+  Just "" -> "."
+  Just x  -> x
