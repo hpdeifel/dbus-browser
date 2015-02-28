@@ -108,8 +108,6 @@ introspect client service path = do
   let xml = fromVariant $ methodReturnBody res !! 0
       object = parseXML path =<< xml
 
-  writeFile "out.log" (maybe "Error" id xml)
-
   return object
 
 collectObjects :: Client -> BusName -> ObjectPath -> IO [ObjectPath]
