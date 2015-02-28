@@ -184,7 +184,7 @@ populateMembers list bus name path iface = do
 showProp :: Prop -> Text
 showProp Prop{..}
   | Just variant <- propValue = T.concat
-                                  [ T.pack (show variant)
+                                  [ formatVariant variant
                                   , " :: "
                                   , formatType propType
                                   ]

@@ -1,3 +1,4 @@
+{-# LANGUAGE OverloadedStrings #-}
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 -- | Routines for formatting dbus values
 --
@@ -7,11 +8,15 @@ module DBusBrowser.Formatting where
 import DBus
 import Data.Text (Text)
 import qualified Data.Text as T
+import Data.Maybe
 
 import Unparse
 
 formatType :: Type -> Text
 formatType = T.pack . unparse
+
+formatVariant :: Variant -> Text
+formatVariant v = fromJust $ T.stripPrefix "Variant " $ T.pack $ show v
 
 instance Unparse Type where
   precedence (TypeArray _) = 0
