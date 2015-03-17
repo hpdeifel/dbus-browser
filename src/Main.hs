@@ -49,7 +49,7 @@ createServiceBrowser :: IORef (Maybe Client) -> Collection
 createServiceBrowser state ui = do
   objectsList <- newHeaderList "Objects" 1
   ifaceList <- newHeaderList "Interfaces" 1
-  memberList <- newHeaderList "Members" 1
+  memberList <- newHeaderList "Members" 2
 
   setFocusAttrs objectsList >> addVimBindings objectsList
   setFocusAttrs ifaceList >> addVimBindings ifaceList
@@ -181,17 +181,45 @@ populateMembers list bus name path iface = do
     Nothing -> return ()
     Just (Iface meths sigs props) -> do
       forM_ props $ \prop -> do
-        txt <- plainText $ T.append "P " (propName prop)
+        let Just variant = propValue prop
+        txt <- plainTextWithAttrs $
+               [ (T.concat ["P ", (propName prop)], defAttr)
+               , (T.concat [" :: ", (formatType (propType prop)), "\n  "], defAttr `withStyle` dim)
+               , (formatVariant variant, defAttr `withStyle` dim)
+               ]
         onList list $ \l -> addToList l (Property prop) txt
 
       forM_ meths $ \meth -> do
-        txt <- plainText $ T.append "M " (T.pack $ formatMemberName $ methodName meth)
+        txt <- plainTextWithAttrs $
+               (T.concat ["M ", (T.pack $ formatMemberName $ methodName meth), "\n  "], defAttr)
+               : map (\(x,y) -> (x, y)) (formatMethType False meth)
         onList list $ \l -> addToList l (Method meth) txt
 
       forM_ sigs $ \sig -> do
-        txt <- plainText $ T.append "S " (T.pack $ formatMemberName $ signalName sig)
+        txt <- plainTextWithAttrs $
+               [ (T.concat ["S ", (T.pack $ formatMemberName $ signalName sig), "\n  "], defAttr)
+               , (formatSigType False sig, defAttr `withStyle` dim)
+               ]
         onList list $ \l -> addToList l (Signal sig) txt
 
+formatSigType :: Bool -> Signal -> Text
+formatSigType showNames s = T.intercalate ", " args
+  where args = map showArg (signalArgs s)
+        showArg a = argText (signalArgName a) (signalArgType a)
+        argText name typ
+          | showNames = T.concat [nameOrUnderscore name, " :: ", formatType typ]
+          | otherwise = formatType typ
+
+formatMethType :: Bool -> Method -> [(Text, Attr)]
+formatMethType showNames m = intersperse (", ", defAttr) args
+  where showArg a = (argText (methodArgName a) (methodArgType a), argAttr a)
+        argText name typ
+          | showNames = T.concat [nameOrUnderscore name, " :: ", formatType typ]
+          | otherwise = formatType typ
+        argAttr a
+          | methodArgDirection a == directionIn = withForeColor defAttr green
+          | otherwise                           = withForeColor defAttr red
+        args = map showArg (methodArgs m)
 
 showProp :: Prop -> Text
 showProp Prop{..}
@@ -205,22 +233,12 @@ showProp Prop{..}
 showProp _ = ""
 
 showMethod :: Method -> [(Text, Attr)]
-showMethod m = [ (T.append mname ": ", defAttr)]
-               ++ intersperse (", ", defAttr) args
-  where showArg a = (argText (methodArgName a) (methodArgType a), argAttr a)
-        argText name typ = T.concat [nameOrUnderscore name, " :: ", formatType typ]
-        argAttr a
-          | methodArgDirection a == directionIn = withForeColor defAttr green
-          | otherwise                           = withForeColor defAttr red
-        args = map showArg (methodArgs m)
-        mname = T.pack $ formatMemberName $ methodName m
+showMethod m = (T.append mname ": ", defAttr) : formatMethType True m
+  where mname = T.pack $ formatMemberName $ methodName m
 
 showSignal :: Signal -> Text
-showSignal s = T.concat [sname,  ": ", T.intercalate ", " args]
-  where args = map showArg (signalArgs s)
-        showArg a = argText (signalArgName a) (signalArgType a)
-        argText name typ = T.concat [nameOrUnderscore name, " :: ", formatType typ]
-        sname = T.pack $ formatMemberName $ signalName s
+showSignal s = T.concat [sname,  ": ", formatSigType True s]
+  where sname = T.pack $ formatMemberName $ signalName s
 
 nameOrUnderscore :: String -> Text
 nameOrUnderscore "" = "_"
@@ -248,7 +266,7 @@ stripPrefix' pref t = case T.stripPrefix pref t of
   Just x  -> x
 
 selectedFocusAttr :: Attr
-selectedFocusAttr = withBackColor defAttr red
+selectedFocusAttr = withBackColor (defAttr `withForeColor` black)  red
 
 selectedUnfocusAttr :: Attr
 selectedUnfocusAttr = withBackColor defAttr brightBlack
