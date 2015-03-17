@@ -58,13 +58,13 @@ createServiceBrowser state ui = do
   statusBar <- plainText ""
 
   onList objectsList $ \l -> l `onSelectionChange` \case
-    SelectionOff -> onList ifaceList clearList
+    SelectionOff -> clearListWithHandlers ifaceList
     SelectionOn _ (name, path) _ -> do
       Just bus <- readIORef state
       populateIfaces ifaceList bus name path
 
   onList ifaceList $ \l -> l `onSelectionChange` \case
-    SelectionOff -> onList memberList clearList
+    SelectionOff -> clearListWithHandlers memberList
     SelectionOn _ iface _ -> do
       Just bus <- readIORef state
       Just (_, ((name,path), _)) <- onList objectsList getSelected
@@ -150,7 +150,7 @@ populateObjects :: Widget (HeaderList (BusName, ObjectPath) FormattedText)
 populateObjects list bus name = do
   objects <- getObjects bus name
   let prefix = commonPrefix $ map (T.pack . formatObjectPath) objects
-  onList list clearList
+  clearListWithHandlers list
   setHeader list $ "Objects " `T.append` prefix
   forM_ objects $ \path -> do
     let path' = stripPrefix' prefix $ T.pack $ formatObjectPath path
@@ -162,7 +162,7 @@ populateIfaces :: Widget (HeaderList InterfaceName FormattedText)
 populateIfaces list bus name path = do
   ifaces <- getInterfaces bus name path
   let prefix = commonPrefix $ map (T.pack . formatInterfaceName) ifaces
-  onList list clearList
+  clearListWithHandlers list
   setHeader list $ "Interfaces " `T.append` prefix
   forM_ ifaces $ \iface -> do
     let iface' = stripPrefix' prefix $ T.pack $ formatInterfaceName iface
@@ -176,7 +176,7 @@ data SomeMember = Method Method
 populateMembers :: Widget (HeaderList SomeMember FormattedText)
                 -> Client -> BusName -> ObjectPath -> InterfaceName -> IO ()
 populateMembers list bus name path iface = do
-  onList list clearList
+  clearListWithHandlers list
   getMembers bus name path iface >>= \case
     Nothing -> return ()
     Just (Iface meths sigs props) -> do

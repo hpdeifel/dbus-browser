@@ -4,6 +4,7 @@ module Graphics.Vty.Widgets.HeaderList
        , newHeaderList
        , setHeader
        , onList
+       , clearListWithHandlers
        ) where
 
 import Data.Text (Text)
@@ -42,3 +43,9 @@ setHeader wref title = getState wref >>= \hl ->
 
 onList :: Widget (HeaderList a b) -> (Widget (List a b) -> IO c) -> IO c
 onList wref f = getState wref >>= \hl -> f (listWidget hl)
+
+-- | Clear list and invoke selection change handlers
+clearListWithHandlers :: Widget (HeaderList a b) -> IO ()
+clearListWithHandlers wref = do
+  onList wref clearList
+  onList wref (flip scrollBy 1)
