@@ -208,7 +208,7 @@ showMethod :: Method -> [(Text, Attr)]
 showMethod m = [ (T.append mname ": ", defAttr)]
                ++ intersperse (", ", defAttr) args
   where showArg a = (argText (methodArgName a) (methodArgType a), argAttr a)
-        argText name typ = T.concat [T.pack name, " :: ", formatType typ]
+        argText name typ = T.concat [nameOrUnderscore name, " :: ", formatType typ]
         argAttr a
           | methodArgDirection a == directionIn = withForeColor defAttr green
           | otherwise                           = withForeColor defAttr red
@@ -219,8 +219,12 @@ showSignal :: Signal -> Text
 showSignal s = T.concat [sname,  ": ", T.intercalate ", " args]
   where args = map showArg (signalArgs s)
         showArg a = argText (signalArgName a) (signalArgType a)
-        argText name typ = T.concat [T.pack name, " :: ", formatType typ]
+        argText name typ = T.concat [nameOrUnderscore name, " :: ", formatType typ]
         sname = T.pack $ formatMemberName $ signalName s
+
+nameOrUnderscore :: String -> Text
+nameOrUnderscore "" = "_"
+nameOrUnderscore s  = T.pack s
 
 -- Sort alphabetically, but put names starting with ':' last
 compareNames :: BusName -> BusName -> Ordering
