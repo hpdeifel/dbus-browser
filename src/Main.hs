@@ -88,10 +88,9 @@ createServiceBrowser state ui = do
     then setCurrentEntry ui 0 >> return True
     else return False
 
-  fstBox <- return objectsList <++> vBorder <++> return ifaceList
-  sndBox <- vBorder <++> return memberList
-  layout <- hBox fstBox sndBox
-  setBoxChildSizePolicy layout (Percentage 65)
+  bottomBox <- return ifaceList <++> vBorder <++> return memberList
+  layout <- return objectsList <--> hBorder <--> return bottomBox
+  setBoxChildSizePolicy layout (Percentage 40)
   withBar <- return layout <--> hBorder <--> return statusBar
   void $ addToCollection ui withBar fg
 
