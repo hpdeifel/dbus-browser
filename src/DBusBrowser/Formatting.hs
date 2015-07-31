@@ -43,3 +43,4 @@ instance Unparse Type where
     TypeArray t' -> "Array " +> f t'
     TypeDictionary t1 t2 -> "Dict " +> f t1 ++ " " +> f t2
     TypeStructure ts -> foldr (\t' s -> ((s ++ " ") +> f t')) "Struct" ts
+    TypeUnixFd -> "Filedescriptor"
