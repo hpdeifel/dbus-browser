@@ -20,4 +20,4 @@ Executable dbus-browser
                        Graphics.Vty.Widgets.HeaderList,
                        Graphics.Vty.Widgets.Vim,
                        Unparse
-  ghc-options:         -threaded
+  ghc-options:         -threaded -fwarn-incomplete-patterns
