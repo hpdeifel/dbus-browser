@@ -27,7 +27,7 @@ import System.Environment
 import qualified Data.Text.IO as TIO
 import Control.Exception
 import Control.Applicative
-import Control.Monad.Maybe
+import Control.Monad.Trans.Maybe
 import Control.Monad
 
 type MaybeIO = MaybeT IO
