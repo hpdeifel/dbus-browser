@@ -11,14 +11,27 @@ Build-type:          Simple
 Cabal-version:       >=1.2
 
 
-Executable dbus-browser
-  Main-is:             Main.hs
+-- Executable dbus-browser
+--   Main-is:             Main.hs
+--   hs-source-dirs:      src/
+--   Build-depends:       dbus >= 0.10.10 && <0.11, vty, base, text, containers, data-default >= 0.5 && <0.6,
+--                        vty-ui >= 1.8 && <1.10, transformers >= 0.4 && <0.5, monads-tf >= 0.1 && <0.2
+--   Other-modules:       DBusBrowser.DBus,
+--                        DBusBrowser.Formatting,
+--                        Graphics.Vty.Widgets.HeaderList,
+--                        Graphics.Vty.Widgets.Vim,
+--                        Unparse
+--   ghc-options:         -threaded -fwarn-incomplete-patterns
+
+Executable dbus-browser-ng
+  Main-is:             MainNG.hs
   hs-source-dirs:      src/
   Build-depends:       dbus >= 0.10.10 && <0.11, vty, base, text, containers, data-default >= 0.5 && <0.6,
-                       vty-ui >= 1.8 && <1.10, transformers >= 0.4 && <0.5, monads-tf >= 0.1 && <0.2
+                       transformers >= 0.4 && <0.5, monads-tf >= 0.1 && <0.2, brick >= 0.1 && <0.2,
+                       lens >= 4.12 && <4.13
   Other-modules:       DBusBrowser.DBus,
                        DBusBrowser.Formatting,
-                       Graphics.Vty.Widgets.HeaderList,
-                       Graphics.Vty.Widgets.Vim,
-                       Unparse
+                       Unparse,
+                       Brick.Widgets.HeaderList,
+                       Brick.Widgets.BusList
   ghc-options:         -threaded -fwarn-incomplete-patterns
