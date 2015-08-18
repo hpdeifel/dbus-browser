@@ -1,0 +1,9 @@
+packages:
+- '.'
+extra-deps:
+  - vty-5.4.0
+  - QuickCheck-2.7.6
+  - brick-0.1
+  - text-zipper-0.3.1
+resolver: lts-3.1
+skip-ghc-check: true
