@@ -37,7 +37,7 @@ main = do
 
   let app :: App BusList Event
       app = App {
-        appDraw = const [renderBusList sysList],
+        appDraw = \s -> [renderBusList s],
         appChooseCursor = neverShowCursor,
         appHandleEvent = appEvent,
         appStartEvent = return,
