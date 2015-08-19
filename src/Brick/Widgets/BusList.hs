@@ -31,7 +31,9 @@ mkBusList :: BusType -> Maybe DBus.Client -> IO BusList
 mkBusList typ client = do
   names <- traverse getNames client
 
-  return $ BusList (headerList name title renderItem $ fromMaybe [] names)
+  let hl = headerList name title renderItem $ fromMaybe [] names
+
+  return $ BusList hl
 
   where name = case typ of
           SystemBus  -> "SystemBusList"
@@ -41,7 +43,7 @@ mkBusList typ client = do
           SystemBus  -> "System Bus"
           SessionBus -> "Session Bus"
 
-        renderItem _ = Brick.str . DBus.formatBusName
+        renderItem _ = Brick.padRight Brick.Max . Brick.str . DBus.formatBusName
 
 renderBusList :: BusList -> Brick.Widget
 renderBusList (BusList hl) = renderHeaderList hl
