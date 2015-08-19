@@ -8,6 +8,7 @@ import Brick.AttrMap
 import Brick.Widgets.BusList
 import Brick.Widgets.List
 import Brick.Widgets.Border
+import Brick.Widgets.Layout
 import Brick.Util (on)
 import Graphics.Vty
 
@@ -17,8 +18,9 @@ import Data.Monoid
 import DBusBrowser.DBus
 import qualified DBus.Client as DBus
 
+type State = HLayout
 
-appEvent :: BusList -> Event -> EventM (Next BusList)
+appEvent :: State -> Event -> EventM (Next State)
 appEvent st e = case e of
   EvKey (KChar 'q') [] -> halt st
   EvKey KEsc []        -> halt st
@@ -30,6 +32,10 @@ attrs = attrMap defAttr
   , (listSelectedAttr, defAttr `withBackColor` brightBlack)
   , (listSelectedAttr <> "focused", black `on` red)]
 
+draw :: State -> [Widget]
+draw st = [w]
+  where w = renderHLayout st
+
 main :: IO ()
 main = do
   (sysBus, sessBus) <- getBusses
@@ -37,9 +43,9 @@ main = do
   sysList <- mkBusList SystemBus sysBus
   sesList <- mkBusList SessionBus sessBus
 
-  let app :: App BusList Event
+  let app :: App State Event
       app = App {
-        appDraw = \s -> [renderBusList s True <+> vBorder <+> renderBusList sesList False],
+        appDraw = draw,
         appChooseCursor = neverShowCursor,
         appHandleEvent = appEvent,
         appStartEvent = return,
@@ -47,4 +53,8 @@ main = do
         appLiftVtyEvent = id
         }
 
-  void $ defaultMain app sysList
+      layout = hLayout [ Element "SystemBus" sysList
+                       , Element "SessionBus" sesList
+                       ]
+
+  void $ defaultMain app layout

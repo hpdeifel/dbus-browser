@@ -34,5 +34,6 @@ Executable dbus-browser-ng
                        Unparse,
                        Brick.Widgets.HeaderList,
                        Brick.Widgets.BusList,
-                       Brick.Renderable
+                       Brick.Renderable,
+                       Brick.Widgets.Layout
   ghc-options:         -threaded -fwarn-incomplete-patterns
