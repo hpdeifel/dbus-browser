@@ -7,6 +7,7 @@ import Brick.Types
 import Brick.AttrMap
 import Brick.Widgets.BusList
 import Brick.Widgets.List
+import Brick.Widgets.Border
 import Brick.Util (on)
 import Graphics.Vty
 
@@ -31,13 +32,13 @@ attrs = attrMap defAttr
 main :: IO ()
 main = do
   (sysBus, sessBus) <- getBusses
-  traverse DBus.disconnect sessBus
 
   sysList <- mkBusList SystemBus sysBus
+  sesList <- mkBusList SessionBus sessBus
 
   let app :: App BusList Event
       app = App {
-        appDraw = \s -> [renderBusList s],
+        appDraw = \s -> [renderBusList s <+> vBorder <+> renderBusList sesList],
         appChooseCursor = neverShowCursor,
         appHandleEvent = appEvent,
         appStartEvent = return,
