@@ -10,10 +10,13 @@ module Brick.Widgets.HeaderList
 
 import Data.Text (Text)
 import Control.Lens ((^.), (&), (%~), to)
+import Data.Monoid
 
 import Brick.Types
 import Brick.Widgets.Core
 import Brick.Widgets.List
+import Brick.AttrMap
+import Brick.Renderable
 import Graphics.Vty (Event(..), Key(..))
 
 data HeaderList e = HL {
@@ -39,8 +42,19 @@ listMoveBottom l = l & listMoveTo (l^.listElementsL^.to length^.to (subtract 1))
 headerList :: Name -> Text -> (Bool -> e -> Widget) -> [e] -> HeaderList e
 headerList name header itemRender content = HL header (list name itemRender content)
 
-renderHeaderList :: HeaderList e -> Widget
-renderHeaderList hl =
+renderHeaderList :: HeaderList e -> Bool -> Widget
+renderHeaderList hl focus =
   padBottom (Pad 1) (txt (hl^.headerTextL))
   <=>
-  renderList (hl^.underlyingListL)
+  (if focus then withFocus else id)
+    (renderList (hl^.underlyingListL))
+
+withFocus :: Widget -> Widget
+withFocus = updateAttrMap updateMap
+  where focusAttr = listSelectedAttr <> "focused"
+        updateMap m = applyAttrMappings
+                      [ (listSelectedAttr, attrMapLookup focusAttr m) ]
+                      m
+
+instance Renderable (HeaderList a) where
+  render = renderHeaderList

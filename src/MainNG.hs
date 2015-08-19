@@ -12,7 +12,7 @@ import Brick.Util (on)
 import Graphics.Vty
 
 import Control.Monad
-import Data.Default
+import Data.Monoid
 
 import DBusBrowser.DBus
 import qualified DBus.Client as DBus
@@ -27,7 +27,8 @@ appEvent st e = case e of
 attrs :: AttrMap
 attrs = attrMap defAttr
   [ (listAttr        , defAttr)
-  , (listSelectedAttr, black `on` red)]
+  , (listSelectedAttr, defAttr `withBackColor` brightBlack)
+  , (listSelectedAttr <> "focused", black `on` red)]
 
 main :: IO ()
 main = do
@@ -38,7 +39,7 @@ main = do
 
   let app :: App BusList Event
       app = App {
-        appDraw = \s -> [renderBusList s <+> vBorder <+> renderBusList sesList],
+        appDraw = \s -> [renderBusList s True <+> vBorder <+> renderBusList sesList False],
         appChooseCursor = neverShowCursor,
         appHandleEvent = appEvent,
         appStartEvent = return,

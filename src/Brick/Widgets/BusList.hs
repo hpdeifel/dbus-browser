@@ -12,6 +12,7 @@ import Brick.Widgets.HeaderList
 import qualified Brick.Widgets.Core as Brick
 import qualified Brick.Types as Brick
 import Brick.Types (suffixLenses)
+import Brick.Renderable
 
 import qualified DBus
 import qualified DBus.Client as DBus
@@ -48,8 +49,11 @@ mkBusList typ client = do
 
         renderItem _ = Brick.padRight Brick.Max . Brick.str . DBus.formatBusName
 
-renderBusList :: BusList -> Brick.Widget
+renderBusList :: BusList -> Bool -> Brick.Widget
 renderBusList (BusList hl) = renderHeaderList hl
+
+instance Renderable BusList where
+  render = renderBusList
 
 -- Sort alphabetically, but put names starting with ':' last
 compareNames :: BusName -> BusName -> Ordering
