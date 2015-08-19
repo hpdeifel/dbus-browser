@@ -18,6 +18,7 @@ import qualified DBus.Client as DBus
 import DBusBrowser.DBus
 
 import Data.Maybe
+import Data.List
 
 
 data BusType = SystemBus | SessionBus
@@ -31,7 +32,9 @@ mkBusList :: BusType -> Maybe DBus.Client -> IO BusList
 mkBusList typ client = do
   names <- traverse getNames client
 
-  let hl = headerList name title renderItem $ fromMaybe [] names
+  let entries = sortBy compareNames (fromMaybe [] names)
+
+  let hl = headerList name title renderItem entries
 
   return $ BusList hl
 
@@ -47,3 +50,11 @@ mkBusList typ client = do
 
 renderBusList :: BusList -> Brick.Widget
 renderBusList (BusList hl) = renderHeaderList hl
+
+-- Sort alphabetically, but put names starting with ':' last
+compareNames :: BusName -> BusName -> Ordering
+compareNames name1 name2 = case (formatBusName name1, formatBusName name2) of
+  (':':_, ':':_) -> compare name1 name2
+  (':':_, _)     -> GT
+  (_, ':':_)     -> LT
+  _              -> compare name1 name2
